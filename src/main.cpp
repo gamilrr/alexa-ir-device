@@ -26,83 +26,40 @@
  * 
  */
 
-#include "task.hpp"
-#include "queue.hpp"
+#include <task.hpp>
+#include <queue.h>
+#include <espressif/esp_common.h>
+#include <esp/uart.h>
+#include "nec_protocol_task.hpp"
+#include "gpio_intr.hpp"
+#include "logger.hpp"
 
-#include "espressif/esp_common.h"
 
-#include "esp/uart.h"
 
-/******************************************************************************************************************
- * task_1_t
- *
- */
-class task_1_t: public esp_open_rtos::thread::task_t
+static QueueHandle_t nec_queue;
+
+void gpio_intr_handler(uint8_t gpio_num)
 {
-public:
-    esp_open_rtos::thread::queue_t<uint32_t> queue;
-    
-private:
-    void task()
-    {
-        printf("task_1_t::task(): start\n");
+    static volatile int32_t before = 0;
+    uint32_t now = sdk_system_get_time();
+    uint32_t interval = now - before;
+    xQueueSendToBackFromISR(nec_queue, &interval, NULL);
+    before = now; 
+}
 
-        uint32_t count = 0;
 
-        while(true) {
-            sleep(1000);
-            queue.post(count);
-            count++;
-        }
-    }    
-};
-/******************************************************************************************************************
- * task_2_t
- *
- */
-class task_2_t: public esp_open_rtos::thread::task_t
-{
-public:
-    esp_open_rtos::thread::queue_t<uint32_t> queue;
-    
-private:
-    void task()
-    {
-        printf("task_2_t::task(): start\n");
-
-        while(true) {
-            uint32_t count;
-
-            if(queue.receive(count, 1500) == 0) {
-                printf("task_2_t::task(): got %u\n", count);
-            } 
-            else {
-                printf("task_2_t::task(): no msg\n");
-            }
-        }
-    }    
-};
-/******************************************************************************************************************
- * globals
- *
- */
-task_1_t task_1;
-task_2_t task_2;
-
-esp_open_rtos::thread::queue_t<uint32_t> MyQueue;
-
+nec_protocol_task nec_task;
 /**
  * 
  */
 extern "C" void user_init(void)
 {
     uart_set_baud(0, 115200);
-    
-    MyQueue.queue_create(10);
-    
-    task_1.queue = MyQueue;
-    task_2.queue = MyQueue;
-    
-    task_1.task_create("tsk1");
-    task_2.task_create("tsk2");
+    sdk_system_update_cpu_freq(SYS_CPU_160MHZ); //Set CPU frequency to 160MHZ
+
+
+    nec_task.task_create("nec");
+    nec_queue = nec_task.get_queue();
+    gpio_intr::set_gpio_inter(14, gpio_intr_handler);
+
 }

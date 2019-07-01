@@ -1,7 +1,7 @@
 .PHONY: monitor
 
 #Compiler Conditionals, comment to disable
-#_DEBUG_ENABLE=1 	#enable debug 
+_DEBUG_ENABLE=1 	#enable debug 
 #_DIO_ENABLE=1      #enable dual io serial flash mode, qio by default
 
 RTOS_ROOT_DIR=./platform/esp-open-rtos
@@ -16,7 +16,7 @@ EXTRA_COMPONENTS=${RTOS_ROOT_DIR}/extras/cpp_support
 
 #debug enable 
 ifdef _DEBUG_ENABLE
-EXTRA_CFLAGS += -DAO_DEBUG
+EXTRA_C_CXX_FLAGS += -DLOG_DEBUG
 endif
 
 #dio enable
