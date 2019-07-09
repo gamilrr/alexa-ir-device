@@ -30,36 +30,30 @@
 #include <queue.h>
 #include <espressif/esp_common.h>
 #include <esp/uart.h>
+#include <utility>
 #include "nec_protocol_task.hpp"
 #include "gpio_intr.hpp"
 #include "logger.hpp"
 
 
-
-static QueueHandle_t nec_queue;
+nec_protocol_task nec_task;
 
 void gpio_intr_handler(uint8_t gpio_num)
 {
-    static volatile int32_t before = 0;
+    static int32_t before = 0;
     uint32_t now = sdk_system_get_time();
     uint32_t interval = now - before;
-    xQueueSendToBackFromISR(nec_queue, &interval, NULL);
+    nec_task.get_queue().postFormISR(interval);
     before = now; 
 }
 
-
-nec_protocol_task nec_task;
-/**
- * 
- */
 extern "C" void user_init(void)
 {
     uart_set_baud(0, 115200);
     sdk_system_update_cpu_freq(SYS_CPU_160MHZ); //Set CPU frequency to 160MHZ
 
 
-    nec_task.task_create("nec");
-    nec_queue = nec_task.get_queue();
     gpio_intr::set_gpio_inter(14, gpio_intr_handler);
+    nec_task.task_create("nec");
 
 }

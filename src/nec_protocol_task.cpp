@@ -2,26 +2,7 @@
 #include "logger.hpp"
 #include <FreeRTOS.h>
 
-nec_protocol_task::nec_protocol_task()
-{
-    mInQueue = NULL;
-    mInQueue = xQueueCreate(100, sizeof(uint32_t));
-        
-    if(mInQueue == NULL){
-        logger::LOG("ERROR: Something went wrong trying to create nec_protocol_task queue\n");
-        return;
-    }
-
-    init_protocol_state();
-}
-
-nec_protocol_task::~nec_protocol_task(){
-    vQueueDelete(mInQueue);
-    mInQueue = 0;
-}
-
-
-const QueueHandle_t nec_protocol_task::get_queue(){
+const message_queue<uint32_t>& nec_protocol_task::get_queue() const{
     return mInQueue;
 }
 
@@ -32,11 +13,11 @@ void nec_protocol_task::task(){
     while(true){
         uint32_t burst = 0;
         
-        if(xQueueReceive(mInQueue, &burst, portMAX_DELAY) != pdTRUE){
+        if(!mInQueue.receiveAndBlock(burst)){
             logger::LOG("ERROR: Error receiving burst data in nec_protocol_task\n");
             continue;
         } 
-
+        
         event = generate_events(burst);
 
         if(event == NEC_EVENTS::E_None){ //restart if unknown event is tiggered
@@ -141,8 +122,6 @@ nec_protocol_task::NEC_EVENTS nec_protocol_task::generate_events(const uint32_t 
     return NEC_EVENTS::E_None;
 
 }
-
-
 
 
 /// State Pending Processing

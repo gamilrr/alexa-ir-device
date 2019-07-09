@@ -3,6 +3,8 @@
 
 #include <task.hpp>
 #include <queue.h>
+#include "message_queue.hpp"
+
 
 using namespace esp_open_rtos::thread;
 
@@ -23,9 +25,9 @@ private:
     enum class NEC_EVENTS{E_9ms, E_4_5ms, E_562us, E_2_25ms, E_1_6ms, E_40ms, E_90ms, E_None}; //NEC protocol transicions events
     
 
-    NEC_STATES mState; //NEC Protocol state
-    QueueHandle_t mInQueue; //Abstract this in a own RAII class
-    nec_buffer buffer; //Data recieved
+    NEC_STATES mState{NEC_STATES::CIdle}; //NEC Protocol state
+    message_queue<uint32_t> mInQueue{64}; //Input queue entry to nec protocol task 16 elements
+    nec_buffer buffer{0,0}; //Data recieved
 
     //filter and generate event
     NEC_EVENTS generate_events(const uint32_t burst);
@@ -36,7 +38,7 @@ private:
     //get valid command
     void check_command();
 
-    //States handlers
+    //states handlers
     void start_handler(NEC_EVENTS event);
     void data_handler(NEC_EVENTS event);
     void data_idle_handler(NEC_EVENTS event); 
@@ -46,14 +48,14 @@ private:
     void repeat_handler(NEC_EVENTS event);
     
     void task();
+
 public:
-    const QueueHandle_t get_queue();
 
-    nec_protocol_task();
-    ~nec_protocol_task();
-    
+    const message_queue<uint32_t>& get_queue() const;
 
-   
+    nec_protocol_task() = default;
+    nec_protocol_task(nec_protocol_task&& nec) = delete; //eliminate resources handling
+
 };
 
 
