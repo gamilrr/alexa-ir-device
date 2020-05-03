@@ -1,30 +1,12 @@
-.PHONY: monitor
+#
+# This is a project Makefile. It is assumed the directory this Makefile resides in is a
+# project subdirectory.
+#
 
-#Compiler Conditionals, comment to disable
-_DEBUG_ENABLE=1 	#enable debug 
-#_DIO_ENABLE=1      #enable dual io serial flash mode, qio by default
+PROJECT_NAME := alexa_ir_device
 
-RTOS_ROOT_DIR=./platform/esp-open-rtos
-ESPPORT= /dev/ttyS7
+EXTRA_COMPONENT_DIRS := src
 
-PROGRAM=alexaIR
+EXTRA_CXXFLAGS := $(foreach d, $(ESP_XTENSA_HEADERS), -isystem$d)
 
-PROGRAM_SRC_DIR= ./src 
-PROGRAM_INC_DIR= ./include
-
-EXTRA_COMPONENTS=${RTOS_ROOT_DIR}/extras/cpp_support
-
-#debug enable 
-ifdef _DEBUG_ENABLE
-EXTRA_C_CXX_FLAGS += -DLOG_DEBUG
-endif
-
-#dio enable
-ifdef _DIO_ENABLE
-FLASH_MODE=dio #for CP210x USB_UART Bridge
-endif 
-
-include ${RTOS_ROOT_DIR}/common.mk
-
-monitor: 
-	picocom ${ESPPORT} -b 115200
+include $(IDF_PATH)/make/project.mk

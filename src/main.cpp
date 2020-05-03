@@ -1,59 +1,31 @@
-/* 
- * The MIT License (MIT)
- * 
- * ESP8266 FreeRTOS Firmware
- * Copyright (c) 2015 Michael Jacobsen (github.com/mikejac)
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- * https://github.com/SuperHouse/esp-open-rtos
- * 
- */
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
-#include <task.hpp>
-#include <queue.h>
-#include <espressif/esp_common.h>
-#include <esp/uart.h>
-#include <utility>
-#include "nec_protocol_task.hpp"
-#include "gpio_intr.hpp"
-#include "logger.hpp"
+#include <iostream>
 
+#include "nec_protocol/nec_rx/nec_rx.hpp"
 
-nec_protocol_task nec_task;
+using alexa_ir::nec_protocol::nec_rx::NecRx;
 
-void gpio_intr_handler(uint8_t gpio_num)
-{
-    static int32_t before = 0;
-    uint32_t now = sdk_system_get_time();
-    uint32_t interval = now - before;
-    nec_task.get_queue().postFormISR(interval);
-    before = now; 
+constexpr auto kGpioNumber = 5;
+constexpr auto kBufferSize = 128;
+constexpr auto kCmdLen = 1;
+constexpr auto kTaskStack = 2048;
+
+void PrintIRCode(void* /*a_param*/) {
+    NecRx nec_rx(kGpioNumber, kBufferSize);
+    std::cout << "Command received... \n";
+    while (true) {
+        auto vec = nec_rx.Recv(kCmdLen);
+        for (auto& item : vec) {
+            ESP_LOGI("main", "addr1: 0x%xh, addr2: 0x%xh, cmd1: 0x%xh, cmd2: 0x%xh\n", item.addr1,
+                     item.addr2, item.cmd1, item.cmd2);
+        }
+    }
+    vTaskDelete(nullptr);
 }
 
-extern "C" void user_init(void)
-{
-    uart_set_baud(0, 115200);
-    sdk_system_update_cpu_freq(SYS_CPU_160MHZ); //Set CPU frequency to 160MHZ
-
-
-    gpio_intr::set_gpio_inter(14, gpio_intr_handler);
-    nec_task.task_create("nec");
-
+extern "C" void app_main(void) {
+    xTaskCreate(PrintIRCode, "PrintIRCode", kTaskStack, nullptr, 1, nullptr);
 }
